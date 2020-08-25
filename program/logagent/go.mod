@@ -1,6 +1,6 @@
 module logagent
 
-go 1.15
+go 1.14
 
 require (
 	github.com/astaxie/beego v1.12.2
@@ -13,12 +13,15 @@ require (
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.14.7 // indirect
+	github.com/hpcloud/tail v1.0.0
 	github.com/jonboulle/clockwork v0.2.0 // indirect
+	github.com/smallnest/rpcx v0.0.0-20200822084631-5599102026f5 // indirect
 	github.com/spf13/cobra v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20200427203606-3cfed13b9966 // indirect
 	go.etcd.io/etcd v3.3.24+incompatible
 	go.uber.org/zap v1.15.0 // indirect
+	golang.org/x/net v0.0.0-20200421231249-e086a090c8fd
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	google.golang.org/grpc v1.31.0 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect

@@ -23,8 +23,11 @@ type LogsConfig struct {
 }
 
 type EtcdConfig struct {
-	EndPoints   []string
-	DialTimeOut int
+	EndPoints         []string
+	DialTimeOut       int
+	WatchKeyPrefix    string
+	StatusKey         string
+	Etcd2TailChanSize int
 }
 
 type TailfConfig struct {
@@ -59,12 +62,12 @@ func (ctx *LogAgentContext) InitLogAgentContext(adapter, fileName string) error 
 		return err
 	}
 	ctx.LogsConfig = LogsConfig
-	EtcdConfig, err: = initEtcdConfig()
+	EtcdConfig, err := initEtcdConfig()
 	if err != nil {
 		logs.Error("InitLogAgentContext: ", err)
 		return err
 	}
-	ctx.EtcdConfig=EtcdConfig
+	ctx.EtcdConfig = EtcdConfig
 
 	err = initTailfConfig()
 	if err != nil {
@@ -109,11 +112,33 @@ func initEtcdConfig() (*EtcdConfig, error) {
 	}
 	timeout, err := beego.AppConfig.Int("etcd_dial_timeout")
 	if err != nil {
-		return nil, errors.New("intEtcdConfig: DialTimout error")
+		logs.Warn("Etcd Timeout is error, 5 as default")
+		timeout = 5
 	}
+	watchKeyPrefix := beego.AppConfig.String("etcd_watch_key_prefix")
+	if len(watchKeyPrefix) == 0 {
+		logs.Warn("Etcd WatchKeyPrefix is empty, none as default")
+		watchKeyPrefix = "none"
+	}
+
+	statusKey := beego.AppConfig.String("etcd_watch_status_key")
+	if len(statusKey) == 0 {
+		logs.Warn("Etcd WatchKeyPrefix is empty, private/status as default")
+		statusKey = "private/status"
+	}
+
+	etcd2TailChanSize, err := beego.AppConfig.Int("etcd_dial_timeout")
+	if err != nil {
+		logs.Warn("Etcd Etcd2TailChanSize is error,20 as default")
+		etcd2TailChanSize = 20
+	}
+
 	return &EtcdConfig{
 		endPoints,
 		timeout,
+		watchKeyPrefix,
+		statusKey,
+		etcd2TailChanSize,
 	}, nil
 }
 
