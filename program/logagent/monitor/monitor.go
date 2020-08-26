@@ -11,11 +11,13 @@ func AddPod(pod *KafkaProducer) {
 func Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		for _, pod := range pods {
+
+	for _, pod := range pods {
+		go func() {
 			pod.Run()
-		}
-	}()
+		}()
+	}
+
 	select {
 	case <-ctx.Done():
 		return
