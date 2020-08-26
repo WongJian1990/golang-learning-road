@@ -3,6 +3,7 @@ package monitor
 import (
 	"container/list"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"logagent/config"
@@ -129,7 +130,7 @@ func (cli *EtcdClient) load(timeout int) error {
 func (cli *EtcdClient) watcher() {
 	defer wg.Done()
 	//监测更新服务
-	logs.Debug("EtcdClient::watcher:Watch start ....")
+	logs.Debug("EtcdClient::watcher: Watch start ....")
 	err := cli.load(5)
 	if err != nil {
 		logs.Error("EtcdClient::watcher: ", err)
@@ -235,7 +236,12 @@ func (cli *EtcdClient) Start() {
 	go cli.transferToTail()
 
 	//Test API
-	cli.put(cli.config.WatchKeyPrefix, "log", "./logagent.log", 1)
+	msg := Msg{Topic: "logagent", Value: "./logagent.log"}
+	value, err := json.Marshal(msg)
+	if err != nil {
+		logs.Error("EtcdClient::Start:", err)
+	}
+	cli.put(cli.config.WatchKeyPrefix, "log", string(value), 1)
 }
 
 //Stop 暂停Etcd监测服务

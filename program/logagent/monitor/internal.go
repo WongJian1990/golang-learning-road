@@ -9,4 +9,13 @@ type EtcdToTail struct {
 	kvt string
 }
 
+type Msg struct {
+	//主题
+	Topic string `json:"topic"`
+	//消息
+	Value string `json:"message"`
+}
+
 var etcdToTailChan chan *EtcdToTail
+
+var tailfToKafkaChan chan *Msg

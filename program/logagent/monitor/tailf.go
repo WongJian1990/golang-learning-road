@@ -1,9 +1,10 @@
 package monitor
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"logagent/config"
 	"time"
 
 	"golang.org/x/net/context"
@@ -19,6 +20,7 @@ const (
 
 type TailfManager struct {
 	tails  map[string]*TailInfo
+	config *config.TailfConfig
 	cancel context.CancelFunc
 	status int
 }
@@ -30,8 +32,12 @@ type TailInfo struct {
 }
 
 //NewTailfManager 创建Tail日志组件管理器
-func NewTailfManager() *TailfManager {
-	return &TailfManager{tails: make(map[string]*TailInfo), status: TailsOff}
+func NewTailfManager(config *config.TailfConfig) (*TailfManager, error) {
+	if config == nil {
+		return nil, errors.New("NewTailfManager:TailfConfig invalid")
+	}
+	tailfToKafkaChan = make(chan *Msg)
+	return &TailfManager{tails: make(map[string]*TailInfo), config: config, status: TailsOff}, nil
 }
 
 func (m *TailfManager) create(filename string) (*tail.Tail, error) {
@@ -43,7 +49,7 @@ func (m *TailfManager) create(filename string) (*tail.Tail, error) {
 		tail.Config{
 			ReOpen:    true,
 			Follow:    true,
-			Location:  &tail.SeekInfo{Offset: 0, Whence: os.SEEK_END},
+			Location:  &tail.SeekInfo{Offset: m.config.FileSeekOffset, Whence: m.config.FileSeekMode},
 			MustExist: false,
 			Poll:      true,
 		})
@@ -76,27 +82,42 @@ func (m *TailfManager) monitor(ctx context.Context, key string) {
 				time.Sleep(time.Second)
 			}
 			//发送kafka
-			fmt.Println("msg: ", msg)
+			//fmt.Println("msg: ", msg)
+			tmsg := &Msg{
+				key,
+				msg.Text,
+			}
+			go func(msg *Msg) {
+				tailfToKafkaChan <- msg
+			}(tmsg)
 		}
 	}
 }
 
 func (m *TailfManager) processTailKv(key, value, kvt string) {
+	var msg Msg
+	// logs.Debug("value: ", value, key)
+	err := json.Unmarshal([]byte(value), &msg)
+	if err != nil {
+		logs.Error("TailfManager::processTailKv: ", err)
+		return
+	}
 	switch kvt {
 	case "PUT":
-		tailf, err := m.create(value)
+		tailf, err := m.create(msg.Value)
 		if err != nil {
 			logs.Error("TailfManager::processTailKv: ", err)
 			return
 		}
-		m.close(key)
+		m.close(msg.Topic)
 		ctx, cancel := context.WithCancel(context.Background())
-		m.tails[key] = &TailInfo{value, tailf, cancel}
-		go m.monitor(ctx, key)
+		m.tails[msg.Topic] = &TailInfo{msg.Value, tailf, cancel}
+		go m.monitor(ctx, msg.Topic)
 	case "DELETE":
-		m.close(key)
+		m.close(msg.Value)
 	default:
-		logs.Error("TailfManager::processTailKv: Not Support Action ", kvt, " [", key, "]= ", value)
+
+		logs.Error("TailfManager::processTailKv: Not Support Action ", kvt, " [", msg.Topic, "]= ", msg.Value)
 	}
 }
 
@@ -136,7 +157,7 @@ func (m *TailfManager) ShutDown() {
 	}
 	logs.Info("TailfManager shutting ...")
 	for key := range m.tails {
-		fmt.Printf("key :%s\n", key)
+		logs.Info("key :%s\n", key)
 		m.close(key)
 	}
 	m.cancel()
