@@ -1,0 +1,8 @@
+相关服务操作
+1. .\etcd.exe 启动etcd服务
+2. .\etcdctl.exe [参数] etcd操作命令
+3. .\zookeeper-server-start.bat ..\..\config\zookeeper.properties 启动zk服务
+4. .\kafka-server-start.bat ..\..\config\server.properties 启动kafka服务
+#  .\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic logagent --from-beginning kafka消费者
+5. .\elasticsearch.bat 启动es服务
+6. .\kibana.bat 启动kibana服务
