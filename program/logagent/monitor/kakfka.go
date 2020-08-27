@@ -6,6 +6,7 @@ import (
 	"logagent/config"
 
 	"github.com/Shopify/sarama"
+	"github.com/astaxie/beego/logs"
 )
 
 type KafkaProducer struct {
@@ -34,6 +35,9 @@ func NewKafkaProducer(config *config.KafkaConfig) (*KafkaProducer, error) {
 func (p *KafkaProducer) Run() {
 	defer p.client.AsyncClose()
 	for {
+		//异常模式处理Errors/Successes 否则可能死锁，导致消费者接收不到数据
+		errors := p.client.Errors()
+		success := p.client.Successes()
 		select {
 		case msg := <-tailfToKafkaChan:
 			kmsg := &sarama.ProducerMessage{
@@ -41,6 +45,16 @@ func (p *KafkaProducer) Run() {
 				Value: sarama.StringEncoder(msg.Value),
 			}
 			p.client.Input() <- kmsg
+
+			// _, _, err := p.client.SendMessage(kmsg)
+			// if err != nil {
+			// 	logs.Error("KafkaProducer::Run: SendMessage ", err)
+			// }
+
+		case <-success:
+			continue
+		case <-errors:
+			logs.Error("KafkaProducer::Run: SendMessage error")
 		}
 	}
 }

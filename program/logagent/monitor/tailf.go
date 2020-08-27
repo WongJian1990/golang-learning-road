@@ -82,7 +82,7 @@ func (m *TailfManager) monitor(ctx context.Context, key string) {
 				time.Sleep(time.Second)
 			}
 			//发送kafka
-			//fmt.Println("msg: ", msg)
+			fmt.Printf("msg: %v\n", msg.Text)
 			tmsg := &Msg{
 				key,
 				msg.Text,

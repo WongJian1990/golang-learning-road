@@ -3,7 +3,6 @@ package monitor
 import (
 	"container/list"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"logagent/config"
@@ -119,7 +118,7 @@ func (cli *EtcdClient) load(timeout int) error {
 	}
 
 	for _, ev := range resp.Kvs {
-		// fmt.Printf("%s : %s\n", ev.Key, ev.Value)
+		fmt.Printf("%s : %s\n", ev.Key, ev.Value)
 		if !cli.isStatusKey(string(ev.Key)) {
 			cli.processEtcdKV(string(ev.Key), string(ev.Value), "PUT")
 		}
@@ -145,7 +144,7 @@ func (cli *EtcdClient) watcher() {
 		rch := cli.client.Watch(context.Background(), cli.config.WatchKeyPrefix, etcd_client.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
-				// fmt.Printf("%s: %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
+				fmt.Printf("%s: %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
 				if !cli.isStatusKey(string(ev.Kv.Key)) {
 					cli.processEtcdKV(string(ev.Kv.Key), string(ev.Kv.Value), ev.Type.String())
 				} else {
@@ -236,12 +235,44 @@ func (cli *EtcdClient) Start() {
 	go cli.transferToTail()
 
 	//Test API
-	msg := Msg{Topic: "logagent", Value: "./logagent.log"}
-	value, err := json.Marshal(msg)
-	if err != nil {
-		logs.Error("EtcdClient::Start:", err)
-	}
-	cli.put(cli.config.WatchKeyPrefix, "log", string(value), 1)
+	// msg := Msg{Topic: "logagent", Value: "./test.log"}
+	// value, err := json.Marshal(msg)
+	// if err != nil {
+	// 	logs.Error("EtcdClient::Start:", err)
+	// }
+	// cli.put(cli.config.WatchKeyPrefix, "log", string(value), 1)
+	// logs.Debug("value: ", string(value))
+	// msg = Msg{Topic: "vaginic", Value: "./vaginic.log"}
+	// value, err = json.Marshal(msg)
+	// if err != nil {
+	// 	logs.Error("EtcdClient::Start:", err)
+	// }
+	// cli.put(cli.config.WatchKeyPrefix, "vaginic", string(value), 1)
+	// logs.Debug("value: ", string(value))
+
+	// msg = Msg{Topic: "zamaci", Value: "./zamaci.log"}
+	// value, err = json.Marshal(msg)
+	// if err != nil {
+	// 	logs.Error("EtcdClient::Start:", err)
+	// }
+	// cli.put(cli.config.WatchKeyPrefix, "zamaci", string(value), 1)
+	// logs.Debug("value: ", string(value))
+
+	// msg = Msg{Topic: "loons", Value: "./loons.log"}
+	// value, err = json.Marshal(msg)
+	// if err != nil {
+	// 	logs.Error("EtcdClient::Start:", err)
+	// }
+	// cli.put(cli.config.WatchKeyPrefix, "loons", string(value), 1)
+	// logs.Debug("value: ", string(value))
+
+	// msg = Msg{Topic: "fixiln", Value: "./fixiln.log"}
+	// value, err = json.Marshal(msg)
+	// if err != nil {
+	// 	logs.Error("EtcdClient::Start:", err)
+	// }
+	// cli.put(cli.config.WatchKeyPrefix, "fixiln", string(value), 1)
+	// logs.Debug("value: ", string(value))
 }
 
 //Stop 暂停Etcd监测服务

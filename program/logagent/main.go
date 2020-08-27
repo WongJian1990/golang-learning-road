@@ -16,7 +16,6 @@ func main() {
 	}
 	//日志初始化
 	log.InitLogs(config.LogAgentCtx.LogsConfig)
-
 	client, err := monitor.NewEtcdClient(config.LogAgentCtx.EtcdConfig)
 	if err != nil {
 		logs.Error(err)
