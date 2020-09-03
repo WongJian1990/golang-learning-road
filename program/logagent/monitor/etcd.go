@@ -29,11 +29,13 @@ var wg *sync.WaitGroup
 
 //EtcdClient 客户端
 type EtcdClient struct {
-	config *config.EtcdConfig
-	client *etcd_client.Client
-	kv     *list.List
-	mtx    sync.Mutex
-	status int
+	config  *config.EtcdConfig
+	client  *etcd_client.Client
+	kv      *list.List
+	mtx     sync.Mutex
+	exit    chan bool
+	comming chan bool
+	status  int
 }
 
 //NewEtcdClient 创建etcd客户端
@@ -43,7 +45,7 @@ func NewEtcdClient(config *config.EtcdConfig) (*EtcdClient, error) {
 	}
 	wg = &sync.WaitGroup{}
 	etcdToTailChan = make(chan *EtcdToTail, config.Etcd2TailChanSize)
-	return &EtcdClient{client: nil, config: config, status: EtcdInitial}, nil
+	return &EtcdClient{client: nil, config: config, exit: make(chan bool), comming: make(chan bool, 10), status: EtcdInitial}, nil
 }
 
 //Close 关闭etcd客户端
@@ -80,22 +82,26 @@ func (cli *EtcdClient) processEtcdKV(key, value, kvt string) {
 	default:
 		logs.Warn("EtcdClient::prcessEtcdKV: unkown operation: ", kvt, "[", key, "]=", value)
 	}
+	cli.comming <- true
 }
 
 func (cli *EtcdClient) transferToTail() {
 	for {
-		for i := 0; i < cli.kv.Len(); i++ {
-			e := cli.kv.Front()
-			//transfer
-			etcdToTailChan <- e.Value.(*EtcdToTail)
-			//remove
-			cli.mtx.Lock()
-			cli.kv.Remove(e)
-			cli.mtx.Unlock()
+		select {
+		case <-cli.comming:
+			for i := 0; i < cli.kv.Len(); i++ {
+				e := cli.kv.Front()
+				//transfer
+				etcdToTailChan <- e.Value.(*EtcdToTail)
+				//remove
+				cli.mtx.Lock()
+				cli.kv.Remove(e)
+				cli.mtx.Unlock()
+			}
+		case <-cli.exit:
+			return
 		}
-		if cli.status == EtcdShutDown {
-			break
-		}
+
 	}
 }
 
@@ -305,8 +311,9 @@ func (cli *EtcdClient) ShutDown() {
 		return
 	}
 	cli.status = EtcdShutDown
+	cli.exit <- true
 	cli.put(cli.config.WatchKeyPrefix, cli.config.StatusKey, status2String(cli.status), 1)
-	cli.kv = list.New()
+	//cli.kv = list.New()
 	defer cli.close()
 	//等待线程关闭
 	wg.Wait()

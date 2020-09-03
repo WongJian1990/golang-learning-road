@@ -1,0 +1,15 @@
+2020/08/31 17:13:03.495 [I] [main.go:18]  InitLogs Sucess
+2020/08/31 17:13:04.505 [D] [asm_amd64.s:1373]  EtcdClient::watcher: Watch start ....
+2020/08/31 17:13:04.506 [D] [main.go:38]  NewEsClient URL:  http://localhost:9200
+2020/08/31 17:13:09.514 [E] [asm_amd64.s:1373]  EtcdClient::watcher:  EtcdClient::load: context deadline exceeded
+2020/08/31 17:13:11.445 [E] [proc.go:203]  no Elasticsearch node available
+2020/08/31 17:13:44.678 [I] [main.go:18]  InitLogs Sucess
+2020/08/31 17:13:45.683 [D] [asm_amd64.s:1373]  EtcdClient::watcher: Watch start ....
+2020/08/31 17:13:45.683 [D] [main.go:38]  NewEsClient URL:  http://localhost:9200
+2020/08/31 17:13:50.685 [E] [asm_amd64.s:1373]  EtcdClient::watcher:  EtcdClient::load: context deadline exceeded
+2020/08/31 17:13:52.593 [E] [proc.go:203]  no Elasticsearch node available
+2020/08/31 17:34:32.588 [I] [main.go:18]  InitLogs Sucess
+2020/08/31 17:34:33.596 [D] [asm_amd64.s:1373]  EtcdClient::watcher: Watch start ....
+2020/08/31 17:34:33.596 [D] [main.go:38]  NewEsClient URL:  http://localhost:9200
+2020/08/31 17:34:38.599 [E] [asm_amd64.s:1373]  EtcdClient::watcher:  EtcdClient::load: context deadline exceeded
+2020/08/31 17:34:40.510 [E] [proc.go:203]  no Elasticsearch node available

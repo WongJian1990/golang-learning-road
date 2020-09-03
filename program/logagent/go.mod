@@ -12,6 +12,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/google/uuid v1.1.1 // indirect
+	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.14.7 // indirect
 	github.com/hpcloud/tail v1.0.0

@@ -1,0 +1,12 @@
+2020/08/31 17:06:27.301 [I] [main.go:18]  InitLogs Sucess
+2020/08/31 17:06:28.309 [D] [asm_amd64.s:1373]  EtcdClient::watcher: Watch start ....
+2020/08/31 17:06:33.312 [E] [asm_amd64.s:1373]  EtcdClient::watcher:  EtcdClient::load: context deadline exceeded
+2020/08/31 17:06:34.268 [E] [proc.go:203]  NewKafkaProducer: kafka: client has run out of available brokers to talk to (Is your cluster reachable?)
+2020/08/31 17:09:02.087 [I] [main.go:18]  InitLogs Sucess
+2020/08/31 17:09:03.095 [D] [asm_amd64.s:1373]  EtcdClient::watcher: Watch start ....
+2020/08/31 17:09:08.101 [E] [asm_amd64.s:1373]  EtcdClient::watcher:  EtcdClient::load: context deadline exceeded
+2020/08/31 17:09:09.056 [E] [proc.go:203]  NewKafkaProducer: kafka: client has run out of available brokers to talk to (Is your cluster reachable?)
+2020/08/31 17:37:15.415 [I] [main.go:18]  InitLogs Sucess
+2020/08/31 17:37:16.423 [D] [asm_amd64.s:1373]  EtcdClient::watcher: Watch start ....
+2020/08/31 17:37:21.426 [E] [asm_amd64.s:1373]  EtcdClient::watcher:  EtcdClient::load: context deadline exceeded
+2020/08/31 17:37:22.389 [E] [proc.go:203]  NewKafkaProducer: kafka: client has run out of available brokers to talk to (Is your cluster reachable?)

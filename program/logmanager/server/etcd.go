@@ -29,11 +29,13 @@ var wg *sync.WaitGroup
 
 //EtcdClient 客户端
 type EtcdClient struct {
-	config *config.EtcdConfig
-	client *etcd_client.Client
-	kv     *list.List
-	mtx    sync.Mutex
-	status int
+	config  *config.EtcdConfig
+	client  *etcd_client.Client
+	kv      *list.List
+	mtx     sync.Mutex
+	exit    chan bool
+	comming chan bool
+	status  int
 }
 
 //NewEtcdClient 创建etcd客户端
@@ -43,7 +45,7 @@ func NewEtcdClient(config *config.EtcdConfig) (*EtcdClient, error) {
 	}
 	wg = &sync.WaitGroup{}
 	etcdPodChan = make(chan *EtcdPod, config.Etcd2KakfaChanSize)
-	return &EtcdClient{client: nil, config: config, status: EtcdInitial}, nil
+	return &EtcdClient{client: nil, config: config, exit: make(chan bool), comming: make(chan bool, 10), status: EtcdInitial}, nil
 }
 
 //Close 关闭etcd客户端
@@ -80,21 +82,24 @@ func (cli *EtcdClient) processEtcdKV(key, value, kvt string) {
 	default:
 		logs.Warn("EtcdClient::prcessEtcdKV: unkown operation: ", kvt, "[", key, "]=", value)
 	}
+	cli.comming <- true
 }
 
 func (cli *EtcdClient) transferToKafka() {
 	for {
-		for i := 0; i < cli.kv.Len(); i++ {
-			e := cli.kv.Front()
-			//transfer
-			etcdPodChan <- e.Value.(*EtcdPod)
-			//remove
-			cli.mtx.Lock()
-			cli.kv.Remove(e)
-			cli.mtx.Unlock()
-		}
-		if cli.status == EtcdShutDown {
-			break
+		select {
+		case <-cli.comming:
+			for i := 0; i < cli.kv.Len(); i++ {
+				e := cli.kv.Front()
+				//transfer
+				etcdPodChan <- e.Value.(*EtcdPod)
+				//remove
+				cli.mtx.Lock()
+				cli.kv.Remove(e)
+				cli.mtx.Unlock()
+			}
+		case <-cli.exit:
+			return
 		}
 	}
 }
@@ -118,7 +123,7 @@ func (cli *EtcdClient) load(timeout int) error {
 	}
 
 	for _, ev := range resp.Kvs {
-		fmt.Printf("%s : %s\n", ev.Key, ev.Value)
+		// fmt.Printf("%s : %s\n", ev.Key, ev.Value)
 		if !cli.isStatusKey(string(ev.Key)) {
 			cli.processEtcdKV(string(ev.Key), string(ev.Value), "PUT")
 		}
@@ -273,8 +278,9 @@ func (cli *EtcdClient) ShutDown() {
 		return
 	}
 	cli.status = EtcdShutDown
+	cli.exit <- true
 	cli.put(cli.config.WatchKeyPrefix, cli.config.StatusKey, status2String(cli.status), 1)
-	cli.kv = list.New()
+	// cli.kv = list.New()
 	defer cli.close()
 	//等待线程关闭
 	wg.Wait()

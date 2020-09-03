@@ -27,7 +27,7 @@ func (p *EsClient) Run() {
 		select {
 		case msg := <-kafkaToEsChan:
 			// logs.Debug("Kafka")
-			_, err := p.client.Index().
+			_, err := p.client.Index()
 				Index(msg.Topic).
 				Type(msg.Topic).
 				BodyJson(msg).Do()
