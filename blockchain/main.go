@@ -1,9 +1,8 @@
 package main
 
 func main() {
-	chain := NewBlockChain()
-	defer chain.db.Close()
-	cli := NewClient(chain)
+
+	cli := NewClient()
 	if cli != nil {
 		cli.Run()
 	}
