@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -47,6 +49,9 @@ func CreateBlockchain(address string) *BlockChain {
 	}
 
 	var tip []byte
+	trans := NewCoinBaseTx(address, genesisCoinbaseData)
+	gen := NewBlock([]*Transaction{trans}, []byte{})
+
 	//打开DB文件
 	db, err := bolt.Open(dbFile, 0600, nil)
 	if err != nil {
@@ -54,8 +59,7 @@ func CreateBlockchain(address string) *BlockChain {
 	}
 	//开启更新事务
 	err = db.Update(func(t *bolt.Tx) error {
-		trans := NewCoinBaseTx(address, genesisCoinbaseData)
-		gen := NewBlock([]*Transaction{trans}, []byte{})
+
 		b, err := t.CreateBucket([]byte(blockBucket))
 		if err != nil {
 			return err
@@ -115,6 +119,11 @@ func (chain *BlockChain) MineBlock(transactions []*Transaction) {
 		os.Exit(1)
 	}
 	var lastHash []byte
+	for _, tx := range transactions {
+		if chain.VerifyTransaction(tx) != true {
+			log.Panic("ERROR: Invalid transaction")
+		}
+	}
 	//首先获取最新一次的哈希用于生成新的区块的哈希
 	//开启一个只读的事务操作
 	err := chain.db.View(func(t *bolt.Tx) error {
@@ -147,7 +156,37 @@ func (chain *BlockChain) MineBlock(transactions []*Transaction) {
 		chain.tip = newBlock.BlockHash
 		return nil
 	})
+	if err != nil {
+		log.Panic(err)
+	}
 
+}
+
+//SignTransaction 对交易输入进行签名
+func (chain *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
+	prevTXs := make(map[string]Transaction)
+
+	for _, vin := range tx.Vin {
+		prevTx, err := chain.FindTransaction(vin.Txid)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTx.ID)] = prevTx
+	}
+	tx.Sign(privKey, prevTXs)
+}
+
+//VerifyTransaction 验证交易有效性
+func (chain *BlockChain) VerifyTransaction(tx *Transaction) bool {
+	prevTXs := make(map[string]Transaction)
+	for _, vin := range tx.Vin {
+		prevTx, err := chain.FindTransaction(vin.Txid)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTx.ID)] = prevTx
+	}
+	return tx.Verify(prevTXs)
 }
 
 //BlockChainIterator 区块链迭代器
@@ -187,7 +226,7 @@ func (it *BlockChainIterator) Next() *Block {
 }
 
 //FindUnspendTransactions 找到未花费输出的交易
-func (chain *BlockChain) FindUnspendTransactions(address string) []Transaction {
+func (chain *BlockChain) FindUnspendTransactions(pubKeyHash []byte) []Transaction {
 	var unspendTxs []Transaction
 	spendTXOs := make(map[string][]int)
 	it := chain.Iterator()
@@ -206,13 +245,13 @@ func (chain *BlockChain) FindUnspendTransactions(address string) []Transaction {
 						}
 					}
 					//如果交易输出可以被解锁，即可被话费
-					if out.CanBeUnlockedWith(address) {
+					if out.IsLockedWithKey(pubKeyHash) {
 						unspendTxs = append(unspendTxs, *tx)
 					}
 				}
 				if tx.IsCoinBase() == false {
 					for _, in := range tx.Vin {
-						if in.CanUnlockOutputWith(address) {
+						if in.UsesKey(pubKeyHash) {
 							inTxID := hex.EncodeToString(in.Txid)
 							spendTXOs[inTxID] = append(spendTXOs[inTxID], in.Vout)
 						}
@@ -227,12 +266,12 @@ func (chain *BlockChain) FindUnspendTransactions(address string) []Transaction {
 }
 
 //FindUTXO 查找交易未花费
-func (chain *BlockChain) FindUTXO(address string) []TxOutput {
+func (chain *BlockChain) FindUTXO(pubKeyHash []byte) []TxOutput {
 	var UTXOs []TxOutput
-	unspendTransactions := chain.FindUnspendTransactions(address)
+	unspendTransactions := chain.FindUnspendTransactions(pubKeyHash)
 	for _, tx := range unspendTransactions {
 		for _, out := range tx.Vout {
-			if out.CanBeUnlockedWith(address) {
+			if out.IsLockedWithKey(pubKeyHash) {
 				UTXOs = append(UTXOs, out)
 			}
 		}
@@ -241,15 +280,15 @@ func (chain *BlockChain) FindUTXO(address string) []TxOutput {
 }
 
 //FindSpendableOutputs 从address中找到至少有amount数量的UTXO
-func (chain *BlockChain) FindSpendableOutputs(address string, amount int) (int, map[string][]int) {
+func (chain *BlockChain) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[string][]int) {
 	unspendOutputs := make(map[string][]int)
-	unspendTxs := chain.FindUnspendTransactions(address)
+	unspendTxs := chain.FindUnspendTransactions(pubKeyHash)
 	accumulated := 0
 Work:
 	for _, tx := range unspendTxs {
 		txID := hex.EncodeToString(tx.ID)
 		for outIdx, out := range tx.Vout {
-			if out.CanBeUnlockedWith(address) && accumulated < amount {
+			if out.IsLockedWithKey(pubKeyHash) && accumulated < amount {
 				accumulated += out.Value
 				unspendOutputs[txID] = append(unspendOutputs[txID], outIdx)
 				if accumulated >= amount {
@@ -260,4 +299,21 @@ Work:
 	}
 
 	return accumulated, unspendOutputs
+}
+
+//FindTransaction 通过ID查找交易
+func (chain *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
+	it := chain.Iterator()
+	for {
+		if block := it.Next(); block != nil {
+			for _, tx := range block.Transactions {
+				if bytes.Compare(tx.ID, ID) == 0 {
+					return *tx, nil
+				}
+			}
+		} else {
+			break
+		}
+	}
+	return Transaction{}, errors.New("Transaction not found")
 }

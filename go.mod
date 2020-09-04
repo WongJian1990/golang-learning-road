@@ -12,6 +12,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/ungerik/go-cairo v0.0.0-20191014050614-4a03f432a432 // indirect
 	go.etcd.io/etcd v3.3.22+incompatible
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/net v0.0.0-20200822124328-c89045814202
 	gopkg.in/olivere/elastic.v2 v2.0.61 // indirect
 )
