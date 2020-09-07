@@ -10,6 +10,7 @@ require (
 	github.com/gomodule/redigo v1.8.2
 	github.com/gorilla/mux v1.8.0
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
+	github.com/stretchr/testify v1.5.1
 	github.com/ungerik/go-cairo v0.0.0-20191014050614-4a03f432a432 // indirect
 	go.etcd.io/etcd v3.3.22+incompatible
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9

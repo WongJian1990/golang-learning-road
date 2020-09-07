@@ -8,13 +8,15 @@ import (
 	"math/big"
 )
 
-var targetBits = 25
+var targetBits = 16
 
+//ProofOfWork 工作量证明
 type ProofOfWork struct {
 	block  *Block
 	target *big.Int
 }
 
+//NewProofWork 构造ProofWork结构
 func NewProofWork(b *Block) *ProofOfWork {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(256-targetBits))
@@ -33,6 +35,7 @@ func (pow *ProofOfWork) prepare(nonce int) []byte {
 	return data
 }
 
+//Run 工作证明
 func (pow *ProofOfWork) Run() (int, []byte) {
 	var hashInt big.Int
 	var hash [32]byte

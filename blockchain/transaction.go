@@ -30,6 +30,11 @@ type TxOutput struct {
 	ScriptPubKey []byte
 }
 
+//TxOutputs 输出集合
+type TxOutputs struct {
+	Outputs []TxOutput
+}
+
 //Transaction 交易单元
 type Transaction struct {
 	ID   []byte
@@ -43,6 +48,29 @@ func (tx Transaction) IsCoinBase() bool {
 }
 
 //Serialize 序列化
+func (outs TxOutputs) Serialize() []byte {
+	var encoded bytes.Buffer
+	enc := gob.NewEncoder(&encoded)
+	err := enc.Encode(outs)
+	if err != nil {
+		log.Panic(err)
+	}
+	return encoded.Bytes()
+
+}
+
+//DeserializeOutputs 反序列化TxOutputs
+func DeserializeOutputs(data []byte) TxOutputs {
+	var outs TxOutputs
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	err := dec.Decode(&outs)
+	if err != nil {
+		log.Panic(err)
+	}
+	return outs
+}
+
+//Serialize Transaction Serialize
 func (tx Transaction) Serialize() []byte {
 	var encoded bytes.Buffer
 	enc := gob.NewEncoder(&encoded)
@@ -51,7 +79,6 @@ func (tx Transaction) Serialize() []byte {
 		log.Panic(err)
 	}
 	return encoded.Bytes()
-
 }
 
 //Hash 返回交易的哈希
@@ -133,7 +160,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 		keyLen := len(vin.PubKey)
 		x.SetBytes(vin.PubKey[:(keyLen / 2)])
 		y.SetBytes(vin.PubKey[(keyLen / 2):])
-		rawPubKey := ecdsa.PublicKey{curve, &x, &y}
+		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
 		if ecdsa.Verify(&rawPubKey, txCopy.ID, &r, &s) == false {
 			return false
 		}
@@ -144,7 +171,12 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 //NewCoinBaseTx 创建一个coinbase交易
 func NewCoinBaseTx(to, data string) *Transaction {
 	if data == "" {
-		data = fmt.Sprintf("Reward to '%s'", to)
+		randData := make([]byte, 20)
+		_, err := rand.Read(randData)
+		if err != nil {
+			log.Panic(err)
+		}
+		data = fmt.Sprintf("%x", randData)
 	}
 
 	txin := TxInput{Txid: []byte{}, Vout: -1, ScriptSig: []byte(data)}
@@ -174,7 +206,7 @@ func (tx Transaction) String() string {
 }
 
 //NewUTXOTransaction 创建一笔新的交易
-func NewUTXOTransaction(from, to string, amount int, chain *BlockChain) *Transaction {
+func NewUTXOTransaction(from, to string, amount int, UTXOSet *UTXOSet) *Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
 	//找到足够的未花费输出
@@ -185,7 +217,7 @@ func NewUTXOTransaction(from, to string, amount int, chain *BlockChain) *Transac
 	}
 	wallet := wallets.GetWallet(from)
 	pubKeyHash := HashPubKey(wallet.PublicKey)
-	acc, validOuptputs := chain.FindSpendableOutputs(pubKeyHash, amount)
+	acc, validOuptputs := UTXOSet.FindSpendableOutputs(pubKeyHash, amount)
 	if acc < amount {
 		log.Panic("Error:Not enought founds")
 	}
@@ -206,6 +238,7 @@ func NewUTXOTransaction(from, to string, amount int, chain *BlockChain) *Transac
 	}
 	tx := Transaction{nil, inputs, outputs}
 	tx.ID = tx.Hash()
+	UTXOSet.BlockChain.SignTransaction(&tx, wallet.PrivateKey)
 	return &tx
 }
 

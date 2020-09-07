@@ -84,7 +84,7 @@ func CreateBlockchain(address string) *BlockChain {
 }
 
 //NewBlockChain 创建一个有创世块的新区块链
-func NewBlockChain(address string) *BlockChain {
+func NewBlockChain() *BlockChain {
 	if dbExists() == false {
 		fmt.Println("No existing block chain found. Create genenis first.")
 		os.Exit(1)
@@ -110,10 +110,8 @@ func NewBlockChain(address string) *BlockChain {
 }
 
 //MineBlock 挖矿(区块)
-func (chain *BlockChain) MineBlock(transactions []*Transaction) {
-	// prevBlock := chain.blocks[len(chain.blocks)-1]
-	// block := NewBlock(data, prevBlock.BlockHash)
-	// chain.blocks = append(chain.blocks, block)
+func (chain *BlockChain) MineBlock(transactions []*Transaction) *Block {
+
 	if dbExists() == false {
 		fmt.Println("MinBlock: block chain not existing. create genesis first.")
 		os.Exit(1)
@@ -159,7 +157,7 @@ func (chain *BlockChain) MineBlock(transactions []*Transaction) {
 	if err != nil {
 		log.Panic(err)
 	}
-
+	return newBlock
 }
 
 //SignTransaction 对交易输入进行签名
@@ -178,6 +176,9 @@ func (chain *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateK
 
 //VerifyTransaction 验证交易有效性
 func (chain *BlockChain) VerifyTransaction(tx *Transaction) bool {
+	if tx.IsCoinBase() {
+		return true
+	}
 	prevTXs := make(map[string]Transaction)
 	for _, vin := range tx.Vin {
 		prevTx, err := chain.FindTransaction(vin.Txid)
@@ -225,9 +226,9 @@ func (it *BlockChainIterator) Next() *Block {
 	return block
 }
 
-//FindUnspendTransactions 找到未花费输出的交易
-func (chain *BlockChain) FindUnspendTransactions(pubKeyHash []byte) []Transaction {
-	var unspendTxs []Transaction
+//FindUTXO 查找交易未花费
+func (chain *BlockChain) FindUTXO() map[string]TxOutputs {
+	var UTXO = make(map[string]TxOutputs)
 	spendTXOs := make(map[string][]int)
 	it := chain.Iterator()
 	for {
@@ -236,25 +237,21 @@ func (chain *BlockChain) FindUnspendTransactions(pubKeyHash []byte) []Transactio
 				txID := hex.EncodeToString(tx.ID)
 			Outputs:
 				for outIdx, out := range tx.Vout {
-					//如果交易输出，则被花费了
 					if spendTXOs[txID] != nil {
-						for _, spendOut := range spendTXOs[txID] {
-							if spendOut == outIdx {
+						for _, spnedOutIdx := range spendTXOs[txID] {
+							if spnedOutIdx == outIdx {
 								continue Outputs
 							}
 						}
 					}
-					//如果交易输出可以被解锁，即可被话费
-					if out.IsLockedWithKey(pubKeyHash) {
-						unspendTxs = append(unspendTxs, *tx)
-					}
+					outs := UTXO[txID]
+					outs.Outputs = append(outs.Outputs, out)
+					UTXO[txID] = outs
 				}
 				if tx.IsCoinBase() == false {
 					for _, in := range tx.Vin {
-						if in.UsesKey(pubKeyHash) {
-							inTxID := hex.EncodeToString(in.Txid)
-							spendTXOs[inTxID] = append(spendTXOs[inTxID], in.Vout)
-						}
+						inTxID := hex.EncodeToString(in.Txid)
+						spendTXOs[inTxID] = append(spendTXOs[inTxID], in.Vout)
 					}
 				}
 			}
@@ -262,43 +259,7 @@ func (chain *BlockChain) FindUnspendTransactions(pubKeyHash []byte) []Transactio
 			break
 		}
 	}
-	return unspendTxs
-}
-
-//FindUTXO 查找交易未花费
-func (chain *BlockChain) FindUTXO(pubKeyHash []byte) []TxOutput {
-	var UTXOs []TxOutput
-	unspendTransactions := chain.FindUnspendTransactions(pubKeyHash)
-	for _, tx := range unspendTransactions {
-		for _, out := range tx.Vout {
-			if out.IsLockedWithKey(pubKeyHash) {
-				UTXOs = append(UTXOs, out)
-			}
-		}
-	}
-	return UTXOs
-}
-
-//FindSpendableOutputs 从address中找到至少有amount数量的UTXO
-func (chain *BlockChain) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[string][]int) {
-	unspendOutputs := make(map[string][]int)
-	unspendTxs := chain.FindUnspendTransactions(pubKeyHash)
-	accumulated := 0
-Work:
-	for _, tx := range unspendTxs {
-		txID := hex.EncodeToString(tx.ID)
-		for outIdx, out := range tx.Vout {
-			if out.IsLockedWithKey(pubKeyHash) && accumulated < amount {
-				accumulated += out.Value
-				unspendOutputs[txID] = append(unspendOutputs[txID], outIdx)
-				if accumulated >= amount {
-					break Work
-				}
-			}
-		}
-	}
-
-	return accumulated, unspendOutputs
+	return UTXO
 }
 
 //FindTransaction 通过ID查找交易
